@@ -1,25 +1,14 @@
 <?php
 
-class SteamAPI  // Change so each function takes a user param
+class SteamAPI
 {
-    const STEAM_APIKEY = "4B5053C092C383C7270FCBF9A1EBE0B3";
-    const PRICES_LOCATION = "cache/prices.json";
-    const CACHE_LOCATION = "cache/steam64/";
+    const STEAM_APIKEY = "4B5053C092C383C7270FCBF9A1EBE0B3";  // Get from https://steamcommunity.com/dev/apikey
+    const BPTF_APIKEY = "567884cbb98d88453ee94ae0";           // Get from https://backpack.tf/api/market
+    const PRICES_LOCATION = "cache/prices.json";              // Where to cache the prices from BP.TF
+    const CACHE_LOCATION = "cache/steam64/";                  // Where to store global json files after creation
     
-    public function __construct($steamid){
-        $this->steamid = $steamid;
-        $this->profileJson = json_decode(file_get_contents('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key='.self::STEAM_APIKEY.'&steamids='.$steamid), true);
-        
-        $this->csgoInvJson = json_decode(file_get_contents('http://steamcommunity.com/profiles/'.$steamid.'/inventory/json/730/2'), true);
-        $this->csgoItemJson = json_decode(file_get_contents('https://api.steampowered.com/IEconItems_730/GetPlayerItems/v1/?key='.self::STEAM_APIKEY.'&format=json&steamid='.$steamid), true);
-        $this->csgoPricesJson = json_decode(file_get_contents('http://jamescullen.me/inventory/api/cache/prices.json'), true);
-        
-        $this->rustInvJson = json_decode(file_get_contents('http://steamcommunity.com/profiles/'.$steamid.'/inventory/json/252490/2'), true);
-        
-    }
-    
-    private function getProfile(){
-        $profileJson = $this->profileJson;
+    private function getProfile($steamid){
+        $profileJson = json_decode(file_get_contents('http://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/?key='.self::STEAM_APIKEY.'&steamids='.$steamid), true);
         
         if (!$profileJson["response"]["players"] == null){
             $profileArray = array(
@@ -33,10 +22,10 @@ class SteamAPI  // Change so each function takes a user param
         
     }
     
-    private function getCSGOInv(){
-        $csgoInvJson = $this->csgoInvJson;
-        $csgoItemJson = $this->csgoItemJson;
-        $csgoPricesJson = $this->csgoPricesJson;
+    private function getCSGOInv($steamid){
+        $csgoInvJson = json_decode(file_get_contents('http://steamcommunity.com/profiles/'.$steamid.'/inventory/json/730/2'), true);
+        $csgoItemJson = json_decode(file_get_contents('https://api.steampowered.com/IEconItems_730/GetPlayerItems/v1/?key='.self::STEAM_APIKEY.'&format=json&steamid='.$steamid), true);
+        $csgoPricesJson = json_decode(file_get_contents('http://jamescullen.me/inventory/api/cache/prices.json'), true);
         
         $invArray = array();
 
@@ -80,13 +69,13 @@ class SteamAPI  // Change so each function takes a user param
     }
     
     public function getCSGOPrices(){
-    	$pricesBPTF = file_get_contents('http://backpack.tf/api/IGetMarketPrices/v1/?key=567884cbb98d88453ee94ae0&appid=730');
+    	$pricesBPTF = file_get_contents('http://backpack.tf/api/IGetMarketPrices/v1/?key='.self::BPTF_APIKEY.'&appid=730');
     	file_put_contents(self::PRICES_LOCATION,$pricesBPTF);
     }
     
     
-    private function getRustInv(){
-        $rustInvJson = $this->rustInvJson;
+    private function getRustInv($steamid){
+        $rustInvJson = json_decode(file_get_contents('http://steamcommunity.com/profiles/'.$steamid.'/inventory/json/252490/2'), true);
         $invArray = array();
         foreach ($rustInvJson["rgDescriptions"] as $item){
           $new_item = array(
@@ -99,11 +88,11 @@ class SteamAPI  // Change so each function takes a user param
         return $invArray;
     }
     
-    public function newJson(){
+    public function newJson($steamid){
         
-        $profile = $this->getProfile();
-        $csgo = $this->getCSGOInv();
-        $rust = $this->getRustInv();
+        $profile = $this->getProfile($steamid);
+        $csgo = $this->getCSGOInv($steamid);
+        $rust = $this->getRustInv($steamid);
         
         $arr = array(
             "success" => "true",
@@ -124,13 +113,13 @@ class SteamAPI  // Change so each function takes a user param
         );
     }
     
-    public function getJson(){
-        $loc = self::CACHE_LOCATION . $this->steamid . ".json";
+    public function getJson($steamid){
+        $loc = self::CACHE_LOCATION . $steamid . ".json";
         if(file_exists($loc)){
             return file_get_contents($loc);
         }
         else {
-            $save = saveJson($this->steamid, $this->newJson());
+            $save = $this->saveJson($steamid, $this->newJson($steamid));
             if ($save->success == "true"){
                 return file_get_contents($loc);
             }
